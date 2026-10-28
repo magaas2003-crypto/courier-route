@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Маршрут курьера</title>
+<meta name="theme-color" content="#f2f3ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121518" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Маршрут">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="7" fill="var(--accent)"/><path d="M9 23c0-5 4-5 7-8s6-3 7-6" stroke="var(--on-accent)" stroke-width="2.6" fill="none" stroke-linecap="round"/><circle cx="9" cy="23" r="2.6" fill="var(--on-accent)"/><circle cx="23" cy="9" r="2.6" fill="var(--on-accent)"/></svg>
+    <span>Маршрут курьера</span>
+  </div>
+  <span id="net" class="net" hidden>Нет сети</span>
+  <button id="btn-settings" class="icon-btn" type="button" aria-label="Настройки">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" stroke="currentColor" stroke-width="2" fill="none"/><circle cx="10" cy="17" r="2.2" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+  </button>
+</header>
+
+<div id="offline-banner" class="banner banner-warn" hidden>
+  <strong>Нет интернета.</strong> Сохранённый маршрут и кнопки «Поехать» работают. Распознавание, поиск адресов и пересчёт заработают, когда сеть вернётся.
+</div>
+
+<main class="layout">
+  <section class="block" id="step-addresses" aria-labelledby="h-addr">
+    <div class="block-head">
+      <h2 id="h-addr"><span class="step">1</span>Адреса</h2>
+      <span class="muted" id="addr-count"></span>
+    </div>
+    <label class="btn btn-ink btn-xl" for="file-input" id="upload-label">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Загрузить скриншоты
+    </label>
+    <input type="file" id="file-input" accept="image/*" multiple class="visually-hidden">
+    <p class="auto-hint" id="auto-hint">Дальше всё само: определю, где вы, найду адреса и построю маршрут.</p>
+    <div id="auto-status" class="auto-status" hidden></div>
+    <div id="ocr-status" class="ocr-status" hidden>
+      <div class="ocr-line"><span id="ocr-text">Готовлю распознавание…</span><span id="ocr-pct" class="num"></span></div>
+      <div class="bar"><div id="ocr-bar"></div></div>
+    </div>
+    <form id="manual-form" class="row" autocomplete="off">
+      <input id="manual-input" type="text" inputmode="text" placeholder="Добавить адрес вручную" aria-label="Адрес вручную" enterkeyhint="done">
+      <button class="btn" type="submit">Добавить</button>
+    </form>
+    <div id="issues" class="issues"></div>
+    <ol id="stop-list" class="stops"></ol>
+    <p id="stops-empty" class="empty">Загрузите скриншоты со списком доставок или введите адрес. Распознавание идёт прямо на телефоне: в первый раз загружается словарь русского языка (около 10 МБ), потом он берётся из памяти.</p>
+  </section>
+
+  <section class="block" id="step-start" aria-labelledby="h-start">
+    <div class="block-head"><h2 id="h-start"><span class="step">2</span>Откуда начинаем</h2></div>
+    <button id="btn-gps" class="btn btn-ink btn-xl" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" fill="none"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Определить моё местоположение
+    </button>
+    <form id="start-form" class="row" autocomplete="off">
+      <input id="start-input" type="text" placeholder="Или начальный адрес" aria-label="Начальный адрес" enterkeyhint="search">
+      <button class="btn" type="submit">Найти</button>
+    </form>
+    <button id="btn-pick-start" class="btn btn-ghost" type="button">Отметить точку на карте</button>
+    <p class="muted small">При загрузке скриншотов местоположение определяется автоматически. Вручную — если GPS недоступен.</p>
+    <div id="start-info" class="start-info"></div>
+  </section>
+
+  <section class="map-wrap" aria-label="Карта" id="map-wrap" hidden>
+    <div id="map"></div>
+    <div id="pick-banner" class="pick-banner" hidden>
+      <span id="pick-text">Нажмите на карту</span>
+      <button id="pick-cancel" class="btn btn-small" type="button">Отмена</button>
+    </div>
+    <div class="map-tools">
+      <button id="map-fit" class="map-btn" type="button">Весь маршрут</button>
+      <button id="map-current" class="map-btn" type="button">Текущая точка</button>
+    </div>
+    <div id="map-error" class="map-error" hidden>Карта не загружается. Список адресов и кнопки «Поехать» работают без неё.</div>
+  </section>
+
+  <section class="block" id="step-route" aria-labelledby="h-route">
+    <div class="block-head"><h2 id="h-route"><span class="step">3</span>Маршрут</h2></div>
+    <button id="btn-route" class="btn btn-accent btn-xl" type="button">Построить оптимальный маршрут</button>
+    <div id="route-msg"></div>
+    <button id="btn-map" class="btn btn-ghost" type="button">Показать карту</button>
+    <div id="route-body" hidden>
+      <dl class="stats">
+        <div><dt>Адресов</dt><dd id="st-count" class="num">0</dd></div>
+        <div><dt>В пути</dt><dd id="st-km" class="num">—</dd></div>
+        <div><dt>За рулём</dt><dd id="st-time" class="num">—</dd></div>
+        <div><dt>Финиш</dt><dd id="st-finish" class="num">—</dd></div>
+      </dl>
+      <p id="route-note" class="note"></p>
+      <ol id="route-list" class="route-list"></ol>
+      <details id="done-box" class="done-box" hidden>
+        <summary id="done-summary">Выполнено</summary>
+        <ol id="done-list" class="route-list compact"></ol>
+      </details>
+    </div>
+  </section>
+</main>
+
+<aside id="drive" class="drive" hidden aria-label="Текущая доставка">
+  <div class="drive-inner">
+    <div class="drive-head">
+      <span class="drive-num num" id="drive-num">1</span>
+      <div class="drive-addr">
+        <div id="drive-text" class="drive-text"></div>
+        <div id="drive-details" class="drive-details" hidden></div>
+        <div id="drive-meta" class="drive-meta"></div>
+      </div>
+    </div>
+    <div class="drive-main">
+      <a id="drive-go" class="btn btn-accent btn-xl" href="#" rel="noopener">Поехать</a>
+      <button id="drive-done" class="btn btn-ink btn-xl" type="button">Доставка выполнена</button>
+    </div>
+    <a id="drive-next" class="btn btn-next btn-xl" href="#" rel="noopener"><span id="drive-next-label">Следующий адрес →</span><span id="drive-next-sub" class="btn-sub">текущий отметится выполненным</span></a>
+    <div class="drive-row">
+      <button id="drive-skip" class="btn btn-small" type="button">Пропустить</button>
+      <button id="drive-later" class="btn btn-small" type="button">Вернуться позже</button>
+      <button id="drive-undo" class="btn btn-small" type="button" disabled>Отменить</button>
+    </div>
+  </div>
+</aside>
+
+<dialog id="settings" class="sheet">
+  <form method="dialog" class="sheet-inner" id="settings-form">
+    <div class="sheet-head"><h2>Настройки</h2><button class="btn btn-small" value="close">Готово</button></div>
+    <fieldset>
+      <legend>Навигатор для кнопки «Поехать»</legend>
+      <div id="nav-options" class="nav-options"></div>
+    </fieldset>
+    <label class="check"><input type="checkbox" id="set-auto"> <span><strong>Строить маршрут автоматически</strong><small>После загрузки скриншотов сразу определять местоположение и считать маршрут. При новых адресах — пересчитывать.</small></span></label>
+    <label class="field">Город по умолчанию
+      <input id="set-city" type="text" placeholder="Москва">
+      <small>Подставляется, если в адресе не указан город.</small>
+    </label>
+    <label class="field">Время на одну доставку, мин
+      <input id="set-service" type="number" min="0" max="60" step="1" inputmode="numeric">
+      <small>Нужно для расчёта времени прибытия и окон доставки.</small>
+    </label>
+    <label class="field">Ключ 2ГИС
+      <input id="set-dgis" type="password" autocomplete="off" spellcheck="false">
+      <small>Нужен, только если сайт открыт без серверной части (иначе ключ задаётся на сервере). Хранится только на этом устройстве.</small>
+    </label>
+    <label class="field">Код доступа к серверу
+      <input id="set-key" type="password" autocomplete="off">
+      <small>Только если на сервере задан APP_PASSWORD.</small>
+    </label>
+    <div class="services" id="services"></div>
+    <button id="btn-diag" class="btn" type="button">Проверить поиск адресов</button>
+    <div id="diag" class="services" hidden></div>
+    <div class="danger">
+      <button id="btn-reset" class="btn btn-ghost" type="button">Очистить все адреса</button>
+      <button id="btn-reset-confirm" class="btn btn-danger" type="button" hidden>Да, удалить всё</button>
+    </div>
+    <p class="safety">Пользуйтесь приложением только на безопасной остановке.</p>
+  </form>
+</dialog>
+
+<dialog id="ocr-dialog" class="sheet">
+  <form method="dialog" class="sheet-inner">
+    <div class="sheet-head"><h2 id="ocr-dialog-title">Распознанный текст</h2><button class="btn btn-small" value="close">Закрыть</button></div>
+    <p class="muted">Если адрес не нашёлся автоматически, скопируйте его отсюда в поле «Добавить адрес вручную».</p>
+    <pre id="ocr-dialog-text" class="ocr-raw"></pre>
+  </form>
+</dialog>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js" defer></script>
+<script src="js/parser.js"></script>
+<script src="js/optimizer.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/direct.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "courier-route",
+  "version": "1.0.0",
+  "description": "Маршрут курьера: распознавание адресов со скриншотов, оптимальный порядок объезда, открытие в навигаторе",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/run.mjs && node test/integration.mjs"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}
